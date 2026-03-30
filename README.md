@@ -32,6 +32,19 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Smarter Scheduling
+
+Beyond the basic daily plan, `pawpal_system.py` includes several algorithms that make the scheduler more intelligent:
+
+| Feature | Method | Description |
+|---|---|---|
+| **Priority + time-of-day sort** | `generate_plan` | Sorts pending tasks by priority first, then morning → afternoon → evening, then shortest duration as a tiebreaker — maximises tasks completed in the available window |
+| **HH:MM clock sort** | `sort_by_time` | Orders tasks by their `start_time` field using zero-padded string comparison; tasks without a start time sink to the end |
+| **Status filtering** | `filter_by_status` | Returns only `pending` or `completed` tasks — used to show "what's left today" vs "what's done" |
+| **Recurring task spawning** | `complete_task` / `spawn_next` | When a recurring task is marked complete, a fresh copy is automatically created with its `due_date` advanced using `timedelta` (daily +1 day, weekly +7 days) |
+| **Time-overlap detection** | `detect_time_overlaps` | Uses a sort-then-sweep algorithm (O(n log n)) to find pairs of tasks whose scheduled windows overlap, returning human-readable warnings without crashing |
+| **Multi-level conflict check** | `check_conflicts` | Combines four independent checks: total time overflow, single task too long to fit, high-priority tasks at risk of exclusion, and time-window overlaps |
+
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.

@@ -96,10 +96,30 @@ The original `generate_plan` returned `list[Task]` (only the scheduled tasks). T
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+The scheduler considers three constraints, in descending order of importance:
+
+1. **Available time** — the hard limit. A task that does not fit in the remaining window is excluded, regardless of priority.
+2. **Priority level** — `high` tasks are always attempted before `medium` or `low` tasks. This ensures critical care (medication, feeding) is never pushed out by optional activities.
+3. **Duration** — used as a tiebreaker within the same priority group. Shorter tasks are scheduled first, which maximises the number of tasks that fit in the window (classic greedy knapsack heuristic).
+
+`time_of_day` slot (morning / afternoon / evening) is a secondary sort key between priority and duration — it nudges the plan into a natural daily rhythm without overriding the priority constraint.
+
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+**Tradeoff: Greedy ordering can exclude a high-priority task in favour of multiple smaller ones**
+
+`generate_plan` sorts by priority first, then by shortest duration within the same priority tier. This means if two tasks share `priority="high"`, the shorter one is scheduled first. In most cases this is the right call — fitting more tasks into the day is generally better for a busy pet owner.
+
+However, the tradeoff shows up in an edge case: imagine a 60-minute window with these two `high` tasks:
+
+| Task | Duration |
+|---|---|
+| Morning walk | 55 min |
+| Joint supplement + Feeding + Litter | 5 + 10 + 10 = 25 min |
+
+The greedy approach schedules the three short tasks first (25 min), leaving only 35 min — not enough for the 55-minute walk. The walk is excluded even though it may be the most important task for the pet's health.
+
+A true optimal solution would require solving the 0/1 knapsack problem (NP-hard), which is overkill for a personal pet care app. The greedy approach was kept because it is fast (O(n log n)), predictable, and correct for the vast majority of realistic task lists. The `check_conflicts` warnings — specifically the "high-priority tasks alone exceed available time" check — alert the owner when this edge case is about to occur, so they can adjust manually.
 
 ---
 
